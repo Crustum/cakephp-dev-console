@@ -94,7 +94,7 @@ class FileTailTest extends TestCase
      */
     public function testRotation(): void
     {
-        $file = $this->fixture('debug.log', ['old']);
+        $file = $this->fixture('debug.log', ['old content with padding']);
         $tail = new FileTail([$file]);
         $tail->backfill(10);
 

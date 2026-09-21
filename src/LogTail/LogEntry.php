@@ -485,6 +485,11 @@ class LogEntry
                 try {
                     $value = $context[$key];
 
+                    if (is_float($value) && !is_finite($value)) {
+                        $replacements['{' . $key . '}'] = $value > 0 ? 'INF' : ($value < 0 ? '-INF' : 'NAN');
+                        continue;
+                    }
+
                     if (is_scalar($value)) {
                         $replacements['{' . $key . '}'] = (string)$value;
                         continue;
@@ -583,7 +588,7 @@ class LogEntry
             }
 
             if (is_float($value) && !is_finite($value)) {
-                return (string)$value;
+                return $value > 0 ? 'INF' : ($value < 0 ? '-INF' : 'NAN');
             }
 
             return $value;
