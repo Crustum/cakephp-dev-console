@@ -129,7 +129,6 @@ class DevCommand extends Command
         }
 
         if ($args->getOption('dry-run')) {
-            // Sweep a stale pid file, if any — diagnostics never block.
             Processes::runningPid();
             $io->out($this->dryRunCommand($devCommands, $packageManager, $args, $runner));
 
@@ -233,8 +232,6 @@ class DevCommand extends Command
             $this->commandOptions($args),
         );
 
-        // Prefer pcntl_exec for clean process replacement on Unix. The
-        // process keeps its pid, so the pid file stays accurate.
         if (function_exists('pcntl_exec') && PHP_OS_FAMILY !== 'Windows') {
             $this->writePidFile($this->currentPid());
             pcntl_exec('/usr/bin/env', ['sh', '-c', $command]);
@@ -287,9 +284,6 @@ class DevCommand extends Command
         $this->interruptCount = 0;
 
         if ($trackPid) {
-            // Track the runner itself, not PHP's cmd wrapper: the wrapper
-            // may exit while the supervised tree lives on, which would leave
-            // a stale pid pointing at a recycled process.
             $this->childPid = $this->resolveSupervisedPid($this->childPid);
             $this->writePidFile($this->childPid);
         }
@@ -320,8 +314,7 @@ class DevCommand extends Command
     /**
      * Handle a console interrupt while supervising the runner.
      *
-     * Mirrors `Monitor\Worker\ProcessTerminator`: the first interrupt asks
-     * the tree to terminate gracefully (`taskkill /PID /T`, no `/F`) so
+     * The first interrupt asks the tree to terminate gracefully (`taskkill /PID /T`, no `/F`) so
      * workers run their cleanup handlers; a repeated interrupt force-kills
      * the whole tree (`/T /F`).
      *
@@ -366,6 +359,8 @@ class DevCommand extends Command
     /**
      * Find a direct child process by executable name.
      *
+     * Wmic CSV columns: Node, Name, ProcessId.
+     *
      * @param int $parentPid Parent process id.
      * @param string $name Executable name, e.g. `node.exe`.
      * @return int|null Child pid, or null when not found.
@@ -382,7 +377,6 @@ class DevCommand extends Command
         );
 
         foreach ($lines as $line) {
-            // CSV columns: Node, Name, ProcessId.
             $parts = str_getcsv(trim($line), ',', '"', '');
 
             if (count($parts) !== 3) {

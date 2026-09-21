@@ -141,8 +141,7 @@ class Processes
     /**
      * Get the pid file tracking the supervised `dev` run.
      *
-     * Named per application so several apps on one machine do not collide,
-     * mirroring `Monitor\Worker\ProcessPool` worker pid files.
+     * Named per application so several apps on one machine do not collide.
      *
      * @return string Absolute pid file path.
      */

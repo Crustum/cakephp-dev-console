@@ -12,6 +12,11 @@
     - [Listing Processes](#listing-processes)
     - [Stopping Processes](#stopping-processes)
     - [Configuration Reference](#configuration-reference)
+- [The Logs Commands](#the-logs-commands)
+    - [Logs Tail](#logs-tail)
+    - [Logs TUI](#logs-tui)
+    - [Custom Log Tabs](#custom-log-tabs)
+    - [Logs Serve](#logs-serve)
 
 <a name="introduction"></a>
 ## Introduction
@@ -25,7 +30,7 @@ bin/cake dev
 Under the hood, the `dev` command uses the `@crustum/multiplex` npm package to manage the processes, giving each process its own tab with searchable, scrollable output. Each process is labeled and color-coded so you can easily distinguish between them. If a process crashes, it will be restarted automatically.
 
 > [!NOTE]
-> The `dev` command requires Node.js for the multiplex runner. On Windows, it falls back to the `concurrently` npm package and the tabbed interface is not available.
+> The `dev` command requires Node.js for the multiplex runner. Multiplex supports Windows (`win32` since `0.4.4`, Windows Terminal recommended); `concurrently` remains available as a merged-output alternative via `--runner=concurrently`.
 
 <a name="installation"></a>
 ## Installation
@@ -286,6 +291,106 @@ bin/cake dev stop
 bin/cake dev stop --timeout=10
 ```
 
+<a name="the-logs-commands"></a>
+## The Logs Commands
+
+Three commands cover application logs. `logs tail` streams entries inline (PHP-only, works everywhere), `logs tui` browses them in a full terminal UI, and `logs serve` is the collector the TUI spawns under the hood:
+
+```bash
+bin/cake logs tail --level=warning --scope=payments
+bin/cake logs tui
+```
+
+<a name="logs-tail"></a>
+### Logs Tail
+
+The `logs tail` command streams log entries to the terminal as they are written:
+
+```bash
+bin/cake logs tail
+```
+
+| Option | Description |
+| --- | --- |
+| `--filter=<value>` | Only show entries containing the given value |
+| `--message=<value>` | Only show entries with the given message |
+| `--level=<level>` | Only show entries at or above the given minimum level (`debug`..`emergency`) |
+| `--scope=<scopes>` | Only show entries with the given comma-separated scopes |
+| `--timeout=<seconds>` | Stop after this many seconds (default: `3600`) |
+| `--lines=<n>` | Exit after printing this many lines (`0` for unlimited) |
+| `-v` | Show more details: dates, untruncated messages, exception traces |
+
+```bash
+bin/cake logs tail --level=error --lines=50
+bin/cake logs tail --scope=payments,orders --message=timeout -v
+```
+
+> [!NOTE]
+> `logs tail` is pure PHP with no extra runtime requirements, so it works on every platform including Windows. Press `Ctrl+C` to exit.
+
+<a name="logs-tui"></a>
+### Logs TUI
+
+The `logs tui` command opens the logs in an interactive terminal UI: a tab sidebar on the left, the log pane on the right, and a status footer:
+
+```bash
+bin/cake logs tui
+bin/cake logs tui --tail=500 --sources=cake_live,cake_file
+```
+
+| Option | Description |
+| --- | --- |
+| `--tail=<n>` | Backfill lines per source before going live (default: `200`) |
+| `--sources=<list>` | Comma-separated sources (default: `cake_live,cake_file`) |
+| `--dry-run` | Print the TUI command without executing it |
+
+> [!NOTE]
+> The TUI needs Bun >= 1.3 or Node >= 26.4. Without a new-enough runtime it fails fast with a message pointing at `bin/cake logs tail`, which is PHP-only and always works.
+
+Inside the TUI you may:
+
+- Switch tabs with `1`-`9` (tabs mirror your `Log` engine configs — one per engine — plus the raw streams).
+- Toggle the `lines` / `cards` view with `v`, and the sidebar with `b`.
+- Filter with `/` (global) or `f` (current tab), and set a minimum severity with `l` (picker) or `L` (step).
+- Open the selected event with `Enter` (or click a focused row) for the full message, origin, and exception details.
+- Toggle follow with `s`, switch dark / light theme with `t`, copy a row with `Ctrl+C` (press again to quit), and press `?` for the full key list.
+
+Which TUI binary runs is resolved like the `dev` runners: the `logsTuiPath` configuration value (a checkout directory or its `cli.js`) wins, otherwise the published `@crustum/log-tui` npm package is used via your detected Node package manager.
+
+<a name="custom-log-tabs"></a>
+#### Custom Log Tabs
+
+By default the TUI derives one tab per `Log` engine configuration, so your sidebar already matches how the application routes logs. To define your own tabs instead, set the `DevConsole.logs.tabs` configuration value — each tab matches by scopes, files, or a minimum level:
+
+```php
+// In config/dev_console.php
+'logs' => [
+    'tabs' => [
+        'payments' => ['scopes' => ['payments']],
+        'errors' => ['files' => ['error.log'], 'level' => 'warning'],
+    ],
+],
+```
+
+Custom tabs replace the derived defaults entirely (`All` always stays first). Entries with an empty title, no scopes/files/level, or an unknown level are skipped, so a typo never breaks the collector handshake.
+
+<a name="logs-serve"></a>
+### Logs Serve
+
+The `logs serve` command streams logs as NDJSON for the TUI host. You rarely run it directly — `logs tui` spawns and supervises it — but it is handy for debugging the stream itself:
+
+```bash
+bin/cake logs serve --timeout=5 | head
+```
+
+| Option | Description |
+| --- | --- |
+| `--tail=<n>` | Backfill lines per file source, `0` for live only (default: `200`) |
+| `--sources=<list>` | Comma-separated sources (default: `cake_live,cake_file`) |
+| `--timeout=<seconds>` | Stop after this many seconds (`0` for unlimited) |
+
+The collector is stateless by design: it taps the live logging pipeline and backfills `LOGS/*.log` files straight to stdout. It never filters, counts, or buffers — the TUI host owns all of that.
+
 <a name="configuration-reference"></a>
 ### Configuration Reference
 
@@ -294,6 +399,7 @@ All settings live in the `config/dev_console.php` configuration file and are rea
 | Key | Description |
 |-----|-------------|
 | `multiplexPath` | Directory containing a multiplex checkout, or the `cli.js` file itself. Null uses the published `@crustum/multiplex` npm package. |
+| `logsTuiPath` | Directory containing a log-tui checkout, or the `cli.js` file itself. Defaults to the checkout bundled with this plugin (`workspace/log-tui`); when that has no built `dist/cli.js`, or when set to null, the published `@crustum/log-tui` npm package is used. |
 | `appName` | Name shown in the multiplex title bar. Defaults to the `APP_NAME` environment variable, falling back to the app folder name. |
 | `forceRegister` | Test-only: force process registration outside a console SAPI. |
 | `registerDefaults` | Register the default processes (cake server, vite when `package.json` exists) on plugin bootstrap. Set `false` to register everything manually. |

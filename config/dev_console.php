@@ -18,6 +18,17 @@ return [
          */
         'multiplexPath' => null,
         /**
+         * Logs TUI Path
+         *
+         * Directory containing a log-tui checkout, or the cli.js file itself.
+         * Defaults to the checkout bundled with this plugin (`workspace/log-tui`,
+         * after `npm install && npm run build` there); when that has no built
+         * `dist/cli.js`, or when set to null, the published
+         * `@crustum/log-tui` npm package is used via the detected Node
+         * package manager.
+         */
+        'logsTuiPath' => null,
+        /**
          * Application Name
          *
          * Name shown in the multiplex title bar. Defaults to the APP_NAME

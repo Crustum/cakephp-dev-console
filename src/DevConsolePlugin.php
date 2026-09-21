@@ -8,6 +8,7 @@ use Cake\Core\BasePlugin;
 use Cake\Core\Configure;
 use Cake\Core\ContainerInterface;
 use Cake\Core\PluginApplicationInterface;
+use Crustum\DevConsole\LogTail\TailEngine;
 use Crustum\DevConsole\Process\Processes;
 use Crustum\PluginManifest\Manifest\ManifestInterface;
 use Crustum\PluginManifest\Manifest\ManifestTrait;
@@ -42,6 +43,8 @@ class DevConsolePlugin extends BasePlugin implements ManifestInterface
             Processes::registerDefaults();
         }
 
+        TailEngine::register();
+
         $configured = Configure::read('DevConsole.commands');
 
         if (is_array($configured)) {
@@ -60,6 +63,9 @@ class DevConsolePlugin extends BasePlugin implements ManifestInterface
         $commands->add('dev', Command\DevCommand::class);
         $commands->add('dev list', Command\DevListCommand::class);
         $commands->add('dev stop', Command\DevStopCommand::class);
+        $commands->add('logs tail', Command\LogsTailCommand::class);
+        $commands->add('logs serve', Command\LogsServeCommand::class);
+        $commands->add('logs tui', Command\LogsTuiCommand::class);
 
         return $commands;
     }
