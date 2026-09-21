@@ -18,7 +18,7 @@
         "php": ">=8.2",
         "cakephp/cakephp": "^5.4",
         "crustum/plugin-manifest": "^1.1",
-        "skie/signal_handler": "1.0"
+        "skie/signal_handler": "^1.0"
     },
     "require-dev": {
         "cakedc/cakephp-phpstan": "^4.3",
