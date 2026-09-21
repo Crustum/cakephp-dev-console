@@ -158,6 +158,7 @@ class SessionFiles
             try {
                 $this->enforceCap($file);
                 file_put_contents($file, $line . "\n", FILE_APPEND | LOCK_EX);
+                clearstatcache(true, $file);
             } finally {
                 restore_error_handler();
             }
@@ -176,6 +177,8 @@ class SessionFiles
      */
     protected function isStale(string $file): bool
     {
+        clearstatcache(true, $file);
+
         set_error_handler(static fn(): bool => true);
         try {
             $mtime = filemtime($file);
@@ -198,6 +201,8 @@ class SessionFiles
      */
     protected function enforceCap(string $file): void
     {
+        clearstatcache(true, $file);
+
         set_error_handler(static fn(): bool => true);
         try {
             $size = filesize($file);
@@ -234,6 +239,7 @@ class SessionFiles
             $tail = $pos === false ? $tail : substr($tail, $pos + 1);
 
             file_put_contents($file, $tail, LOCK_EX);
+            clearstatcache(true, $file);
         } finally {
             restore_error_handler();
         }
